@@ -80,7 +80,6 @@ public class GptTokenizerImp implements GptTokenizer {
         }
 
         List<Integer> result = new ArrayList<>();
-        result.add(187);
         for (List<String> list : strings){
             for (String string : list) {
                 if (encoder.containsKey(string)){
