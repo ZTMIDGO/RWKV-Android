@@ -24,7 +24,7 @@ android {
     }
 
     aaptOptions {
-        noCompress 'tflite', '.tflite', 'txt', '.txt', 'json', '.json' , ".ort"
+        noCompress 'tflite', 'txt', 'json', "ort"
     }
 
     compileOptions {

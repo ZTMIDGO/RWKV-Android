@@ -37,7 +37,7 @@
         android:layout_height="wrap_content">
         <EditText
             android:id="@+id/number"
-            android:text="512"
+            android:text="128"
             android:gravity="center"
             android:inputType="number"
             android:singleLine="true"
@@ -46,7 +46,7 @@
             android:layout_height="wrap_content"/>
         <EditText
             android:id="@+id/topk"
-            android:text="5"
+            android:text="15"
             android:inputType="number"
             android:gravity="center"
             android:layout_weight="1"

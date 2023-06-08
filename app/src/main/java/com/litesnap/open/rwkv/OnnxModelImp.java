@@ -1,6 +1,7 @@
 package com.litesnap.open.rwkv;
 
 import android.content.Context;
+import android.util.Log;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;

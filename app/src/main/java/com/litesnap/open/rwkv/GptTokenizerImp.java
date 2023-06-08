@@ -45,7 +45,6 @@ public class GptTokenizerImp implements GptTokenizer {
             if (decoder.containsKey(value)) sb.append(decoder.get(value));
         }
         List<Integer> result = new ArrayList<>();
-        result.add(0);
         for (int i = 0; i < sb.length(); i++){
             String key = String.valueOf(sb.charAt(i));
             if (GPTByteUtils.BYTE_DECODER.containsKey(key)){
@@ -81,6 +80,7 @@ public class GptTokenizerImp implements GptTokenizer {
         }
 
         List<Integer> result = new ArrayList<>();
+        result.add(187);
         for (List<String> list : strings){
             for (String string : list) {
                 if (encoder.containsKey(string)){
