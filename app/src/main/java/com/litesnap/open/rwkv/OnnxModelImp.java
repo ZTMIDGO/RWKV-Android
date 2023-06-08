@@ -27,7 +27,7 @@ import ai.onnxruntime.OrtSession;
  * Created by ZTMIDGO 2022/9/15
  */
 public class OnnxModelImp implements GptModel {
-    private final String MODEL_NAME = "model.ort";
+    private final String MODEL_NAME = "model.onnx";
     private final OrtEnvironment environment = OrtEnvironment.getEnvironment();
     private final OrtSession.SessionOptions options = new OrtSession.SessionOptions();
 
@@ -42,17 +42,19 @@ public class OnnxModelImp implements GptModel {
     private OrtSession session;
     private MyRunnable runnable;
 
-    private final int layer = 24;
-    private final int embd = 1024;
-    private final int sequenceLength = 1024;
+    private final int layer = 12;
+    private final int embd = 768;
+    private final int sequenceLength = 1;
 
     public OnnxModelImp(Context context, GptTokenizer tokenizer){
         this.context = context;
         this.tokenizer = tokenizer;
         try {
             String path = PathManager.getModelPath(context) + "/" + MODEL_NAME;
-            options.addConfigEntry("session.load_model_format", "ORT");
+            options.addConfigEntry("session.load_model_format", "ONNX");
             session = environment.createSession(path, options);
+            java.util.Set<java.lang.String> inputs = session.getInputNames();
+            System.out.println(inputs);
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -70,13 +72,22 @@ public class OnnxModelImp implements GptModel {
             public void run() {
                 Map<String, OnnxTensor> map = new LinkedHashMap<>();
                 try {
+
                     float[] pp = new float[layer * embd];
                     Arrays.fill(pp, (float) -1e30);
-                    OnnxTensor xx_att = OnnxTensor.createTensor(environment, FloatBuffer.wrap(new float[layer * embd]), new long[]{layer, embd});
-                    OnnxTensor aa_att = OnnxTensor.createTensor(environment, FloatBuffer.wrap(new float[layer * embd]), new long[]{layer, embd});
-                    OnnxTensor bb_att = OnnxTensor.createTensor(environment, FloatBuffer.wrap(new float[layer * embd]), new long[]{layer, embd});
-                    OnnxTensor pp_att = OnnxTensor.createTensor(environment, FloatBuffer.wrap(pp), new long[]{layer, embd});
-                    OnnxTensor xx_ffn = OnnxTensor.createTensor(environment, FloatBuffer.wrap(new float[layer * embd]), new long[]{layer, embd});
+                    java.util.Iterator<java.lang.String> inputs = session.getInputNames().iterator();
+                    inputs.next();
+                    for (int x = 0; x < session.getInputNames().size() - 1; x++){
+                        OnnxTensor inputTensor = OnnxTensor.createTensor(environment, FloatBuffer.wrap(new float[embd]), new long[]{embd});
+                        String ss = inputs.next();
+                        System.out.println(x);
+                        System.out.println(ss);
+                        map.put(ss,
+                                inputTensor
+                        );
+                    }
+
+
                     List<Integer> arrays = tokenizer.encode(text);
                     List<Integer> tokens = new ArrayList<>();
                     for (int i = 0; i < maxCount; i++) {
@@ -96,27 +107,21 @@ public class OnnxModelImp implements GptModel {
                         }
 
                         OnnxTensor idx = OnnxTensor.createTensor(environment, buffer, new long[]{sequenceLength});
-                        map.put("idx", idx);
-                        map.put("xx_att", xx_att);
-                        map.put("aa_att", aa_att);
-                        map.put("bb_att", bb_att);
-                        map.put("pp_att", pp_att);
-                        map.put("xx_ffn", xx_ffn);
-                        Set<String> outs = new LinkedHashSet<>();
-                        outs.add("x");
-                        outs.add("xx_att_r");
-                        outs.add("aa_att_r");
-                        outs.add("bb_att_r");
-                        outs.add("pp_att_r");
-                        outs.add("xx_ffn_r");
+
+                        java.util.Iterator<java.lang.String> outputs = session.getInputNames().iterator();
+                        map.put(outputs.next(), idx);
+
+
+
                         ort = session.run(map);
 
                         OnnxValue run = ort.get(0);
-                        xx_att = (OnnxTensor) ort.get(1);
-                        aa_att = (OnnxTensor) ort.get(2);
-                        bb_att = (OnnxTensor) ort.get(3);
-                        pp_att = (OnnxTensor) ort.get(4);
-                        xx_ffn = (OnnxTensor) ort.get(5);
+                        for(int x = 1; x < session.getInputNames().size()-1;x++){
+                            String ss = outputs.next();
+                            System.out.println(x);
+                            System.out.println(ss);
+                            map.put(ss,(OnnxTensor) ort.get(x));
+                        }
 
                         float[] predictions = (float[]) run.getValue();
                         //ort.close();
