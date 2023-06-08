@@ -5,3 +5,5 @@
 
 The English model for RWKV-V4 430M runs on the CPU for inference
 How to use: Download the model https://huggingface.co/TIEMING/rwkv-v4-onnx and copy the model to the Assets folder
+
+![image](https://github.com/ZTMIDGO/RWKV-Android/blob/master/5.jpg)
