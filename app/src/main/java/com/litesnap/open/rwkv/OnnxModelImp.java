@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -42,19 +43,19 @@ public class OnnxModelImp implements GptModel {
     private OrtSession session;
     private MyRunnable runnable;
 
-    private final int layer = 12;
-    private final int embd = 768;
-    private final int sequenceLength = 1;
+    private final int layer = 24;
+    private final int embd = 1024;
+    private final int sequenceLength = 1024;
+    private final List<String> inputNames = new ArrayList<>();
 
     public OnnxModelImp(Context context, GptTokenizer tokenizer){
         this.context = context;
         this.tokenizer = tokenizer;
         try {
             String path = PathManager.getModelPath(context) + "/" + MODEL_NAME;
-            options.addConfigEntry("session.load_model_format", "ONNX");
+            options.addConfigEntry("session.load_model_format", "ORT");
             session = environment.createSession(path, options);
-            java.util.Set<java.lang.String> inputs = session.getInputNames();
-            System.out.println(inputs);
+            inputNames.addAll(session.getInputNames());
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -72,21 +73,12 @@ public class OnnxModelImp implements GptModel {
             public void run() {
                 Map<String, OnnxTensor> map = new LinkedHashMap<>();
                 try {
-
-                    float[] pp = new float[layer * embd];
-                    Arrays.fill(pp, (float) -1e30);
-                    java.util.Iterator<java.lang.String> inputs = session.getInputNames().iterator();
-                    inputs.next();
-                    for (int x = 0; x < session.getInputNames().size() - 1; x++){
-                        OnnxTensor inputTensor = OnnxTensor.createTensor(environment, FloatBuffer.wrap(new float[embd]), new long[]{embd});
-                        String ss = inputs.next();
-                        System.out.println(x);
-                        System.out.println(ss);
-                        map.put(ss,
-                                inputTensor
-                        );
+                    for (String name : inputNames){
+                        float[] buff = new float[layer * embd];
+                        if (name.equals("pp_att")) Arrays.fill(buff, (float) -1e30);
+                        OnnxTensor inputTensor = OnnxTensor.createTensor(environment, FloatBuffer.wrap(buff), new long[]{layer, embd});
+                        map.put(name, inputTensor);
                     }
-
 
                     List<Integer> arrays = tokenizer.encode(text);
                     List<Integer> tokens = new ArrayList<>();
@@ -108,23 +100,17 @@ public class OnnxModelImp implements GptModel {
 
                         OnnxTensor idx = OnnxTensor.createTensor(environment, buffer, new long[]{sequenceLength});
 
-                        java.util.Iterator<java.lang.String> outputs = session.getInputNames().iterator();
-                        map.put(outputs.next(), idx);
-
-
+                        map.put(inputNames.get(0), idx);
 
                         ort = session.run(map);
 
                         OnnxValue run = ort.get(0);
-                        for(int x = 1; x < session.getInputNames().size()-1;x++){
-                            String ss = outputs.next();
-                            System.out.println(x);
-                            System.out.println(ss);
-                            map.put(ss,(OnnxTensor) ort.get(x));
+
+                        for (int x = 1; x < inputNames.size(); x++){
+                            map.put(inputNames.get(x),(OnnxTensor) ort.get(x));
                         }
 
                         float[] predictions = (float[]) run.getValue();
-                        //ort.close();
 
                         if (isCancel()) return;
 
@@ -192,6 +178,7 @@ public class OnnxModelImp implements GptModel {
                         }
 
                         if (arrays.isEmpty()){
+                            Log.e("Dong", "run: "+nextToken);
                             tokens.add(nextToken);
                             String decodedToken = tokenizer.decode(Arrays.asList(nextToken));
                             if (callback != null) callback.callback(decodedToken);
