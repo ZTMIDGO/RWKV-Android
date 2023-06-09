@@ -28,7 +28,7 @@ import ai.onnxruntime.OrtSession;
  * Created by ZTMIDGO 2022/9/15
  */
 public class OnnxModelImp implements GptModel {
-    private final String MODEL_NAME = "model.onnx";
+    private final String MODEL_NAME = "model.ort";
     private final OrtEnvironment environment = OrtEnvironment.getEnvironment();
     private final OrtSession.SessionOptions options = new OrtSession.SessionOptions();
 
