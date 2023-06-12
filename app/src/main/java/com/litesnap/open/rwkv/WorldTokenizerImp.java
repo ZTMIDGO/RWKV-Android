@@ -52,12 +52,12 @@ public class WorldTokenizerImp implements GptTokenizer {
             int next = i + 1;
             if (next < bytes.length){
                 if (!(tiesMap.containsKey(item) && tiesMap.get(item).contains(bytes[next]))){
-                    String word = new String(Arrays.copyOfRange(bytes, start, i + 1));
+                    String word = new String(Arrays.copyOfRange(bytes, start, next));
                     start = i + 1;
                     if (encoder.containsKey(word)) result.add(encoder.get(word));
                 }
             }else {
-                String word = new String(Arrays.copyOfRange(bytes, start, i + 1));
+                String word = new String(Arrays.copyOfRange(bytes, start, next));
                 if (encoder.containsKey(word)) result.add(encoder.get(word));
             }
         }
