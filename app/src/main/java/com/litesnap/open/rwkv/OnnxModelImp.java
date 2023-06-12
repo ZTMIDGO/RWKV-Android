@@ -3,12 +3,15 @@ package com.litesnap.open.rwkv;
 import android.content.Context;
 import android.util.Log;
 
+import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.nio.LongBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -22,16 +25,17 @@ import java.util.concurrent.Executors;
 import ai.onnxruntime.OnnxTensor;
 import ai.onnxruntime.OnnxValue;
 import ai.onnxruntime.OrtEnvironment;
+import ai.onnxruntime.OrtException;
 import ai.onnxruntime.OrtSession;
 
 /**
  * Created by ZTMIDGO 2022/9/15
  */
 public class OnnxModelImp implements GptModel {
-    private final String MODEL_NAME = "model.ort";
+    private final String MODEL_NAME = "model.onnx";
     private final OrtEnvironment environment = OrtEnvironment.getEnvironment();
     private final OrtSession.SessionOptions options = new OrtSession.SessionOptions();
-
+    private final Map<String, OnnxTensor> map = new LinkedHashMap<>();
     private final Random random = new Random();
     private final GPTStrategy strategy = new GPTStrategy(GPTStrategyEnum.TOPK, 5);
     private final ExecutorService exec = Executors.newCachedThreadPool();
@@ -45,7 +49,7 @@ public class OnnxModelImp implements GptModel {
 
     private final int layer = 24;
     private final int embd = 1024;
-    private final int sequenceLength = 1024;
+    private final int sequenceLength = 1;
     private final List<String> inputNames = new ArrayList<>();
 
     public OnnxModelImp(Context context, GptTokenizer tokenizer){
@@ -53,7 +57,6 @@ public class OnnxModelImp implements GptModel {
         this.tokenizer = tokenizer;
         try {
             String path = PathManager.getModelPath(context) + "/" + MODEL_NAME;
-            options.addConfigEntry("session.load_model_format", "ORT");
             session = environment.createSession(path, options);
             inputNames.addAll(session.getInputNames());
         }catch (Exception e){
@@ -64,24 +67,16 @@ public class OnnxModelImp implements GptModel {
     @Override
     public void generate(String text, int maxCount, Callback callback) {
         if (runnable != null) runnable.setCancel(true);
-        if (ort != null){
-            ort.close();
-            ort = null;
-        }
+        closeResult();
+
         runnable = new MyRunnable() {
             @Override
             public void run() {
-                Map<String, OnnxTensor> map = new LinkedHashMap<>();
                 try {
-                    for (String name : inputNames){
-                        float[] buff = new float[layer * embd];
-                        if (name.equals("pp_att")) Arrays.fill(buff, (float) -1e30);
-                        OnnxTensor inputTensor = OnnxTensor.createTensor(environment, FloatBuffer.wrap(buff), new long[]{layer, embd});
-                        map.put(name, inputTensor);
-                    }
-
                     List<Integer> arrays = tokenizer.encode(text);
                     List<Integer> tokens = new ArrayList<>();
+                    fillMap();
+
                     for (int i = 0; i < maxCount; i++) {
                         int[] paddedTokens = new int[sequenceLength];
                         IntBuffer buffer = IntBuffer.wrap(paddedTokens);
@@ -104,13 +99,12 @@ public class OnnxModelImp implements GptModel {
 
                         ort = session.run(map);
 
-                        OnnxValue run = ort.get(0);
-
-                        for (int x = 1; x < inputNames.size(); x++){
+                        float[] predictions = (float[]) ort.get(0).getValue();
+                        for (int x = 0; x < inputNames.size(); x++){
                             map.put(inputNames.get(x),(OnnxTensor) ort.get(x));
                         }
 
-                        float[] predictions = (float[]) run.getValue();
+                        if (!arrays.isEmpty()) continue;
 
                         if (isCancel()) return;
 
@@ -178,18 +172,17 @@ public class OnnxModelImp implements GptModel {
                         }
 
                         if (arrays.isEmpty()){
-                            Log.e("Dong", "run: "+nextToken);
                             tokens.add(nextToken);
                             String decodedToken = tokenizer.decode(Arrays.asList(nextToken));
                             if (callback != null) callback.callback(decodedToken);
+                            Log.e("Dong", "run: "+nextToken+"  "+decodedToken);
+                            if (nextToken == 261 || nextToken == 0) break;
                         }
-                    }
-                    if (ort != null){
-                        ort.close();
-                        ort = null;
                     }
                 }catch (Exception e){
                     e.printStackTrace();
+                }finally {
+                    closeResult();
                 }
             }
         };
@@ -208,6 +201,7 @@ public class OnnxModelImp implements GptModel {
         exec.shutdown();
         if (session != null) {
             try {
+                closeResult();
                 session.close();
                 options.close();
             }catch (Exception e){
@@ -224,6 +218,22 @@ public class OnnxModelImp implements GptModel {
     @Override
     public void setTopK(int value) {
         strategy.value = value;
+    }
+
+    private void fillMap() throws Exception {
+        for (String name : inputNames){
+            float[] buff = new float[layer * embd];
+            if (name.equals("pp_att")) Arrays.fill(buff, (float) -1e30);
+            OnnxTensor inputTensor = OnnxTensor.createTensor(environment, FloatBuffer.wrap(buff), new long[]{layer, embd});
+            map.put(name, inputTensor);
+        }
+    }
+
+    private void closeResult(){
+        if (ort != null){
+            ort.close();
+            ort = null;
+        }
     }
 
     private int randomIndex(List<Float> probs){

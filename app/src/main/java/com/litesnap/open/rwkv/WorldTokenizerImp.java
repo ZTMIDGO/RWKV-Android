@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -26,26 +27,40 @@ import java.util.stream.Stream;
  * Created by ZTMIDGO 2022/9/15
  */
 public class WorldTokenizerImp implements GptTokenizer {
-    private final String VOCAB_NAME = "vocab.txt";
+    private final String VOCAB_NAME = "vocab.json";
     private final Map<String, Integer> encoder = new HashMap<>();
     private final Map<Integer, String> decoder = new HashMap<>();
+    private final Map<Byte, Set<Byte>> tiesMap = new HashMap<>();
     private final Context context;
 
     public WorldTokenizerImp(Context context){
         this.context = context;
-        fillEncoder();
         fillDecoder();
+        fillEncoder();
     }
 
     @Override
     public List<Integer> encode(String text) {
-        List<Integer> result = new ArrayList<>(text.length() + 1);
+        text = text.replace(" ", "");
+        List<Integer> result = new ArrayList<>();
+        result.add(261);
         result.add(53648);
         result.add(59);
-        String[] array = StringUtils.toArrays(text);
-        for (int i = 0; i < array.length; i++){
-            String c = array[i];
-            if (encoder.containsKey(c)) result.add(encoder.get(c));
+        byte[] bytes = text.getBytes();
+        int start = 0;
+        for (int i = 0; i < bytes.length; i++){
+            byte item = bytes[i];
+            int next = i + 1;
+            if (next < bytes.length){
+                if (!(tiesMap.containsKey(item) && tiesMap.get(item).contains(bytes[next]))){
+                    String word = new String(Arrays.copyOfRange(bytes, start, i + 1));
+                    start = i + 1;
+                    if (encoder.containsKey(word)) result.add(encoder.get(word));
+                }
+            }else {
+                String word = new String(Arrays.copyOfRange(bytes, start, i + 1));
+                if (encoder.containsKey(word)) result.add(encoder.get(word));
+            }
         }
         result.add(261);
         result.add(40301);
@@ -62,34 +77,38 @@ public class WorldTokenizerImp implements GptTokenizer {
         return sb.toString();
     }
 
+    private void addTies(String word){
+        byte[] bytes = word.getBytes();
+        int size = bytes.length - 1;
+        for (int i = 0; i < size; i++) {
+            byte item = bytes[i];
+            if (!tiesMap.containsKey(item)) tiesMap.put(item, new HashSet<>());
+            int next = i + 1;
+            if (next <= size) tiesMap.get(item).add(bytes[next]);
+        }
+    }
+
     private void fillEncoder(){
         try {
-            String path = PathManager.getModelPath(context) + "/" + VOCAB_NAME;
-            BufferedReader reader = new BufferedReader(new FileReader(path));
-            String line;
-            Pattern pattern = Pattern.compile("^([0-9]*) ");
-            while ((line = reader.readLine()) != null){
-                line = line.replaceFirst(" ([0-9]*)$", "");
-                Matcher matcher = pattern.matcher(line);
-                if (matcher.find()){
-                    String key = matcher.group();
-                    line = line.replaceFirst(key, "");
-                    key = key.replaceAll(" ", "");
-                    if (line.startsWith("'")){
-                        line = line.replaceFirst("^'", "");
-                        line = line.replaceFirst("'$", "");
-                    }
-                    encoder.put(line, Integer.parseInt(key));
-                }
+            for (Map.Entry<Integer, String> entry : decoder.entrySet()){
+                encoder.put(entry.getValue(), entry.getKey());
             }
-            reader.close();
         }catch (Exception e){
             e.printStackTrace();
         }
     }
 
     private void fillDecoder(){
-        for (Map.Entry<String, Integer> entry : encoder.entrySet())
-            decoder.put(entry.getValue(), entry.getKey());
+        try {
+            String path = PathManager.getModelPath(context) + "/" + VOCAB_NAME;
+            Map<String, String> map = new HashMap<>();
+            map.putAll(new Gson().fromJson(new FileReader(path), decoder.getClass()));
+            for (Map.Entry<String, String> entry : map.entrySet()){
+                addTies(entry.getValue());
+                decoder.put(Integer.parseInt(entry.getKey()), entry.getValue());
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 }

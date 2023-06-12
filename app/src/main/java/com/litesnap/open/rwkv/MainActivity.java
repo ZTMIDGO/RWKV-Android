@@ -68,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
         mInitView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                GptTokenizer tokenizer = new GptTokenizerImp(MainActivity.this);
+                GptTokenizer tokenizer = new WorldTokenizerImp(MainActivity.this);
                 model = new OnnxModelImp(MainActivity.this, tokenizer);
             }
         });
@@ -77,7 +77,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 String text = mEditText.getText().toString();
-                mTextView.setText(text);
+                String line = String.format("Q:%s \n\nA:", text);
+                mTextView.setText(line);
                 final int number = Integer.parseInt(mNumView.getText().toString());
                 final int topk = Integer.parseInt(mTopKView.getText().toString());
                 model.setTopK(topk);
