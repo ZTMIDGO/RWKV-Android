@@ -6,7 +6,7 @@
 
 下载APP安装体验(RWKV-0.4B-World-FP32): https://huggingface.co/TIEMING/rwkv-world-0.4B-onnx/blob/main/app-release.apk
 
-下载APP安装体验(RWKV-0.4B-Pile-int8): https://drive.google.com/file/d/1Rrx8SlErId6TLCCL1SKhA3ba9o0rJCVz/view?usp=sharing
+下载APP安装体验(RWKV-0.4B-Pile-INT8): https://drive.google.com/file/d/1Rrx8SlErId6TLCCL1SKhA3ba9o0rJCVz/view?usp=sharing
 
 
 Model for RWKV-World-0.4B, running on CPU for inference
@@ -15,7 +15,7 @@ How to use: Download the model https://huggingface.co/TIEMING/rwkv-world-0.4B-on
 
 Download APP Installation Experience (RWKV-0.4B-World-FP32): https://huggingface.co/TIEMING/rwkv-world-0.4B-onnx/blob/main/app-release.apk
 
-Download APP Installation Experience (RWKV-0.4B-Pile-int8): https://drive.google.com/file/d/1Rrx8SlErId6TLCCL1SKhA3ba9o0rJCVz/view?usp=sharing
+Download APP Installation Experience (RWKV-0.4B-Pile-INT8): https://drive.google.com/file/d/1Rrx8SlErId6TLCCL1SKhA3ba9o0rJCVz/view?usp=sharing
 
 
 ![image](https://github.com/ZTMIDGO/RWKV-Android/blob/master/5.jpg)
