@@ -41,7 +41,6 @@ public class WorldTokenizerImp implements GptTokenizer {
 
     @Override
     public List<Integer> encode(String text) {
-        text = text.replace(" ", "");
         List<Integer> result = new ArrayList<>();
         result.add(261);
         result.add(53648);
