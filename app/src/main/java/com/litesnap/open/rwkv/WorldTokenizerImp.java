@@ -30,7 +30,7 @@ public class WorldTokenizerImp implements GptTokenizer {
     private final String VOCAB_NAME = "vocab.json";
     private final Map<String, Integer> encoder = new HashMap<>();
     private final Map<Integer, String> decoder = new HashMap<>();
-    private final Map<Byte, Set<Byte>> tiesMap = new HashMap<>();
+    private final Set<String> tiesSet = new HashSet<>();
     private final Context context;
 
     public WorldTokenizerImp(Context context){
@@ -48,16 +48,10 @@ public class WorldTokenizerImp implements GptTokenizer {
         byte[] bytes = text.getBytes();
         int start = 0;
         for (int i = 0; i < bytes.length; i++){
-            byte item = bytes[i];
-            int next = i + 1;
-            if (next < bytes.length){
-                if (!(tiesMap.containsKey(item) && tiesMap.get(item).contains(bytes[next]))){
-                    String word = new String(Arrays.copyOfRange(bytes, start, next));
-                    start = i + 1;
-                    if (encoder.containsKey(word)) result.add(encoder.get(word));
-                }
-            }else {
-                String word = new String(Arrays.copyOfRange(bytes, start, next));
+            byte[] copy = Arrays.copyOfRange(bytes, start, i + 1);
+            if (!tiesSet.contains(MCUUtils.bytesToHex(copy)) || i == bytes.length - 1){
+                String word = new String(Arrays.copyOfRange(bytes, start, i == bytes.length - 1 ? bytes.length : i));
+                start = i;
                 if (encoder.containsKey(word)) result.add(encoder.get(word));
             }
         }
@@ -78,12 +72,8 @@ public class WorldTokenizerImp implements GptTokenizer {
 
     private void addTies(String word){
         byte[] bytes = word.getBytes();
-        int size = bytes.length - 1;
-        for (int i = 0; i < size; i++) {
-            byte item = bytes[i];
-            if (!tiesMap.containsKey(item)) tiesMap.put(item, new HashSet<>());
-            int next = i + 1;
-            if (next <= size) tiesMap.get(item).add(bytes[next]);
+        for (int i = 1; i <= bytes.length; i++) {
+            tiesSet.add(MCUUtils.bytesToHex(Arrays.copyOf(bytes, i)));
         }
     }
 

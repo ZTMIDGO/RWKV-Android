@@ -59,6 +59,7 @@ public class OnnxModelImp implements GptModel {
             String path = PathManager.getModelPath(context) + "/" + MODEL_NAME;
             session = environment.createSession(path, options);
             inputNames.addAll(session.getInputNames());
+            fillMap();
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -67,7 +68,7 @@ public class OnnxModelImp implements GptModel {
     @Override
     public void generate(String text, int maxCount, Callback callback) {
         if (runnable != null) runnable.setCancel(true);
-        closeResult();
+        //closeResult();
 
         runnable = new MyRunnable() {
             @Override
@@ -75,7 +76,6 @@ public class OnnxModelImp implements GptModel {
                 try {
                     List<Integer> arrays = tokenizer.encode(text);
                     List<Integer> tokens = new ArrayList<>();
-                    fillMap();
 
                     for (int i = 0; i < maxCount; i++) {
                         int[] paddedTokens = new int[sequenceLength];
@@ -182,7 +182,7 @@ public class OnnxModelImp implements GptModel {
                 }catch (Exception e){
                     e.printStackTrace();
                 }finally {
-                    closeResult();
+                    //closeResult();
                 }
             }
         };
