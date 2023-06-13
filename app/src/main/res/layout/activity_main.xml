@@ -71,26 +71,25 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
         <Button
-            android:id="@+id/init"
-            android:text="初始化"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="55dp"/>
-        <Button
             android:id="@+id/start"
             android:text="生成"
-            android:layout_marginLeft="10dp"
             android:layout_weight="1"
             android:layout_width="0dp"
             android:layout_height="55dp"/>
     </LinearLayout>
-    <TextView
-        android:id="@+id/text"
-        android:layout_marginTop="10dp"
-        android:textSize="17sp"
-        android:textColor="@color/black"
-        android:lineSpacingExtra="5dp"
-        android:textIsSelectable="true"
+    <ScrollView
+        android:fillViewport="true"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
+        <TextView
+            android:id="@+id/text"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:textSize="17sp"
+            android:textColor="@color/black"
+            android:lineSpacingExtra="5dp"
+            android:textIsSelectable="true"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </ScrollView>
 </androidx.appcompat.widget.LinearLayoutCompat>

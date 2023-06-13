@@ -42,7 +42,6 @@ public class WorldTokenizerImp implements GptTokenizer {
     @Override
     public List<Integer> encode(String text) {
         List<Integer> result = new ArrayList<>();
-        result.add(261);
         result.add(53648);
         result.add(59);
         byte[] bytes = text.getBytes();
@@ -58,6 +57,7 @@ public class WorldTokenizerImp implements GptTokenizer {
         result.add(261);
         result.add(40301);
         result.add(59);
+        Log.e("Dong", "encode: "+Arrays.toString(result.toArray()));
         return result;
     }
 

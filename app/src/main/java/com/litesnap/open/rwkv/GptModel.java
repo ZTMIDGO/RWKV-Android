@@ -11,6 +11,7 @@ public interface GptModel {
     void close();
     void cancel();
     void setTopK(int value);
+    boolean isRunning();
     interface Callback{
         void callback(String text);
     }

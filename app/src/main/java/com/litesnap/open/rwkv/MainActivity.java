@@ -18,7 +18,6 @@ public class MainActivity extends AppCompatActivity {
 
     private OnnxModelImp model;
     private TextView mTextView;
-    private View mInitView;
     private View mStartView;
 
     private EditText mNumView;
@@ -34,7 +33,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         mTextView = findViewById(R.id.text);
         mEditText = findViewById(R.id.edit);
-        mInitView = findViewById(R.id.init);
         mStartView = findViewById(R.id.start);
         mNumView = findViewById(R.id.number);
         mTopKView = findViewById(R.id.topk);
@@ -51,11 +49,17 @@ public class MainActivity extends AppCompatActivity {
                         try {
                             FileUtils.copyAssets(getAssets(), "model", getFilesDir().getAbsoluteFile());
                         }catch (Exception e){
-                            e.printStackTrace();
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    mTextView.setText("复制模型失败");
+                                }
+                            });
                         }finally {
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
+                                    mTextView.setText("已完成模型复制");
                                     dialog.dismiss();
                                 }
                             });
@@ -65,34 +69,30 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        mInitView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                GptTokenizer tokenizer = new WorldTokenizerImp(MainActivity.this);
-                model = new OnnxModelImp(MainActivity.this, tokenizer);
-            }
-        });
-
         mStartView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String text = mEditText.getText().toString();
-                String line = String.format("Q:%s \n\nA:", text);
-                mTextView.setText(line);
-                final int number = Integer.parseInt(mNumView.getText().toString());
-                final int topk = Integer.parseInt(mTopKView.getText().toString());
-                model.setTopK(topk);
-                model.generate(text, number, new GptModel.Callback() {
-                    @Override
-                    public void callback(String text) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                mTextView.append(text);
-                            }
-                        });
-                    }
-                });
+                if (model != null && model.isRunning()) return;
+
+                if (model == null){
+                    mTextView.setText("初始化中. . .");
+                    exec.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            GptTokenizer tokenizer = new WorldTokenizerImp(MainActivity.this);
+                            model = new OnnxModelImp(MainActivity.this, tokenizer);
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    mTextView.setText("初始化完成");
+                                    working();
+                                }
+                            });
+                        }
+                    });
+                }else {
+                    working();
+                }
             }
         });
     }
@@ -102,5 +102,25 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         exec.shutdownNow();
         model.close();
+    }
+
+    private void working(){
+        String text = mEditText.getText().toString();
+        String line = String.format("Question:%s\n\nAnswer:", text);
+        mTextView.setText(line);
+        final int number = Integer.parseInt(mNumView.getText().toString());
+        final int topk = Integer.parseInt(mTopKView.getText().toString());
+        model.setTopK(topk);
+        model.generate(text, number, new GptModel.Callback() {
+            @Override
+            public void callback(String text) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mTextView.append(text);
+                    }
+                });
+            }
+        });
     }
 }
