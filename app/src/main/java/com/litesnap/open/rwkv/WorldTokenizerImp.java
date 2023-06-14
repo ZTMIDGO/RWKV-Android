@@ -46,10 +46,11 @@ public class WorldTokenizerImp implements GptTokenizer {
         result.add(59);
         byte[] bytes = text.getBytes();
         int start = 0;
-        for (int i = 0; i < bytes.length; i++){
+        for (int i = 0; i <= bytes.length; i++){
             byte[] copy = Arrays.copyOfRange(bytes, start, i + 1);
-            if (!tiesSet.contains(MCUUtils.bytesToHex(copy)) || i == bytes.length - 1){
-                String word = new String(Arrays.copyOfRange(bytes, start, i == bytes.length - 1 ? bytes.length : i));
+            if (!tiesSet.contains(MCUUtils.bytesToHex(copy)) || i == bytes.length){
+                boolean isContains = !tiesSet.contains(MCUUtils.bytesToHex(copy));
+                String word = new String(Arrays.copyOfRange(bytes, start, isContains ? i : bytes.length));
                 start = i;
                 if (encoder.containsKey(word)) result.add(encoder.get(word));
             }
