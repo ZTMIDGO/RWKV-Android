@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_marginTop="16dp"
+    android:layout_marginBottom="16dp"
+    android:layout_marginLeft="16dp"
+    android:layout_marginRight="16dp"
+    tools:context=".MainActivity">
+    <Button
+        android:id="@+id/copy"
+        android:text="复制模型"
+        android:textSize="18sp"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"/>
+    <Button
+        android:id="@+id/write"
+        android:text="续写"
+        android:enabled="false"
+        android:textSize="18sp"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"/>
+    <Button
+        android:id="@+id/answer"
+        android:text="对话"
+        android:textSize="18sp"
+        android:enabled="false"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"/>
+</androidx.appcompat.widget.LinearLayoutCompat>

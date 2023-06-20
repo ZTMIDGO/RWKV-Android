@@ -32,6 +32,9 @@ import ai.onnxruntime.OrtSession;
  * Created by ZTMIDGO 2022/9/15
  */
 public class OnnxModelImp implements GptModel {
+    public static final int MODE_WRITE = 0;
+    public static final int MODE_TALK = 1;
+
     private final String MODEL_NAME = "model.onnx";
     private final OrtEnvironment environment = OrtEnvironment.getEnvironment();
     private final OrtSession.SessionOptions options = new OrtSession.SessionOptions();
@@ -41,7 +44,6 @@ public class OnnxModelImp implements GptModel {
     private final ExecutorService exec = Executors.newCachedThreadPool();
 
     private final Context context;
-    private final GptTokenizer tokenizer;
 
     private final int layer = 24;
     private final int embd = 1024;
@@ -51,22 +53,27 @@ public class OnnxModelImp implements GptModel {
     private OrtSession.Result ort;
     private OrtSession session;
     private MyRunnable runnable;
+
+    private int mode = MODE_TALK;
+    private float presence = 0.7f;
+    private float frequency = 0.4f;
     private boolean isRunnable;
 
-    public OnnxModelImp(Context context, GptTokenizer tokenizer){
+    public OnnxModelImp(Context context, int mode){
         this.context = context;
-        this.tokenizer = tokenizer;
+        this.mode = mode;
         try {
             String path = PathManager.getModelPath(context) + "/" + MODEL_NAME;
             session = environment.createSession(path, options);
             inputNames.addAll(session.getInputNames());
+            fillMap();
         }catch (Exception e){
             e.printStackTrace();
         }
     }
 
     @Override
-    public void generate(String text, int maxCount, Callback callback) {
+    public void generate(List<Integer> arrays, int maxCount, Callback callback) {
         if (runnable != null) runnable.setCancel(true);
         isRunnable = true;
         closeResult();
@@ -74,9 +81,11 @@ public class OnnxModelImp implements GptModel {
             @Override
             public void run() {
                 try {
-                    List<Integer> arrays = tokenizer.encode(text);
                     List<Integer> tokens = new ArrayList<>(sequenceLength);
-                    fillMap();
+                    Map<Integer, Integer> occurrence = new HashMap<>();
+
+                    if (mode == MODE_WRITE) fillMap();
+
                     int size = maxCount + arrays.size();
                     for (int i = 0; i < size; i++) {
                         int[] paddedTokens = new int[sequenceLength];
@@ -101,9 +110,11 @@ public class OnnxModelImp implements GptModel {
                         ort = session.run(map);
 
                         float[] predictions = (float[]) ort.get(0).getValue();
-                        fillMap(ort);
 
-                        if (!arrays.isEmpty()) continue;
+                        if (!arrays.isEmpty()) {
+                            fillMap(ort);
+                            continue;
+                        }
 
                         if (isCancel()) return;
 
@@ -114,6 +125,7 @@ public class OnnxModelImp implements GptModel {
                             case TOPK:
                                 List<Pair<Integer, Float>> filteredLogitsWithIndexes = new ArrayList<>();
                                 for (int x = 0; x < outputLogits.length; x++) {
+                                    if (occurrence.containsKey(x)) outputLogits[x] = outputLogits[x] - (presence + occurrence.get(x) * frequency);
                                     filteredLogitsWithIndexes.add(new Pair<>(x, outputLogits[x]));
                                 }
 
@@ -171,11 +183,14 @@ public class OnnxModelImp implements GptModel {
                         }
 
                         if (arrays.isEmpty()){
+                            if (!occurrence.containsKey(nextToken)) occurrence.put(nextToken, 0);
+                            occurrence.put(nextToken, occurrence.get(nextToken) + 1);
                             tokens.add(nextToken);
-                            String decodedToken = tokenizer.decode(Arrays.asList(nextToken));
-                            if (callback != null) callback.callback(decodedToken);
-                            Log.e("Dong", "run: "+nextToken+"  "+decodedToken);
-                            if (nextToken == 261 || nextToken == 0) break;
+                            Log.e("Dong", "run: "+nextToken);
+                            if (mode == MODE_TALK && (nextToken == 60807 || nextToken == 23692 || nextToken == 33161 || nextToken == 82 || nextToken == 24281 || nextToken == 53648 || nextToken == 40301)) break;
+
+                            if (callback != null) callback.callback(new ArrayList<>(Arrays.asList(nextToken)));
+                            fillMap(ort);
                         }
                     }
                 }catch (Exception e){
@@ -218,6 +233,21 @@ public class OnnxModelImp implements GptModel {
     @Override
     public void setTopK(int value) {
         strategy.value = value;
+    }
+
+    @Override
+    public void setPenalty(float v1, float v2) {
+        presence = v1;
+        frequency = v2;
+    }
+
+    @Override
+    public void clean() {
+        try {
+            fillMap();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
