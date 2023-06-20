@@ -135,6 +135,7 @@ public class TalkFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 if (model == null || model.isRunning()) return;
+                
                 mAdapter.clean();
                 model.clean();
             }
