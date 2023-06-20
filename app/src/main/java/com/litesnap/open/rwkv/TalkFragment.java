@@ -134,7 +134,7 @@ public class TalkFragment extends Fragment {
         mCleanView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (model != null && model.isRunning()) return;
+                if (model == null || model.isRunning()) return;
                 mAdapter.clean();
                 model.clean();
             }
