@@ -89,7 +89,7 @@
             <EditText
                 android:id="@+id/p2"
                 android:layout_gravity="center_vertical"
-                android:inputType="number"
+                android:inputType="numberDecimal"
                 android:maxLines="1"
                 android:textSize="16sp"
                 android:gravity="center"
