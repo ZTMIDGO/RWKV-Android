@@ -8,4 +8,6 @@ public interface Atts {
     String LEN = "len";
     String P1 = "p1";
     String P2 = "p2";
+    String TEMP = "temp";
+    String TOP_P = "top_p";
 }

@@ -10,11 +10,11 @@ public interface GptModel {
     int sample(List<Integer> indexes, List<Float> probs);
     void close();
     void cancel();
-    void setTopK(int value);
+    void setTop(float temp, float topp, int topk);
     void setPenalty(float v1, float v2);
     void clean();
     boolean isRunning();
     interface Callback{
-        void callback(List<Integer> tokens);
+        void callback(int token, int index, int maxCount, boolean isEnd);
     }
 }

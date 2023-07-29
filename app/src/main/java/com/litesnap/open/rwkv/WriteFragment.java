@@ -15,6 +15,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,6 +40,8 @@ public class WriteFragment extends Fragment {
     private EditText mLenView;
     private EditText mP1View;
     private EditText mP2View;
+    private EditText mTempView;
+    private EditText mTopPView;
     private View mStartView;
     private ScrollView mScrollView;
 
@@ -52,6 +55,7 @@ public class WriteFragment extends Fragment {
         super.onCreate(savedInstanceState);
         uiHandler = new Handler();
         dialog = new ProgressDialog(getActivity());
+        dialog.setCancelable(false);
     }
 
     @Override
@@ -72,11 +76,15 @@ public class WriteFragment extends Fragment {
         mP2View = view.findViewById(R.id.p2);
         mStartView = view.findViewById(R.id.start);
         mScrollView = view.findViewById(R.id.scroll);
+        mTempView = view.findViewById(R.id.temp);
+        mTopPView = view.findViewById(R.id.top_p);
 
         mTopKView.setText(String.valueOf(PreferencesManager.getTopK()));
         mLenView.setText(String.valueOf(PreferencesManager.getLen()));
         mP1View.setText(String.valueOf(PreferencesManager.getP1()));
         mP2View.setText(String.valueOf(PreferencesManager.getP2()));
+        mTempView.setText(String.valueOf(PreferencesManager.getTemp()));
+        mTopPView.setText(String.valueOf(PreferencesManager.getTopp()));
 
         mStartView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -86,16 +94,23 @@ public class WriteFragment extends Fragment {
                 String p1Str = mP1View.getText().toString();
                 String p2Str = mP2View.getText().toString();
                 String text = mContentView.getText().toString();
+                String tempStr = mTempView.getText().toString();
+                String toppStr = mTopPView.getText().toString();
 
                 final int topK = TextUtils.isEmpty(topKStr) ? PreferencesManager.getTopK() : Integer.parseInt(topKStr);
                 final int len = TextUtils.isEmpty(lenStr) ? PreferencesManager.getLen() : Integer.parseInt(lenStr);
                 final float p1 = TextUtils.isEmpty(p1Str) ? PreferencesManager.getP1() : Float.parseFloat(p1Str);
                 final float p2 = TextUtils.isEmpty(p2Str) ? PreferencesManager.getP2() : Float.parseFloat(p2Str);
+                final float temp = TextUtils.isEmpty(tempStr) ? PreferencesManager.getTemp() : Float.parseFloat(tempStr);
+                final float topp = TextUtils.isEmpty(toppStr) ? PreferencesManager.getTopp() : Float.parseFloat(toppStr);
 
-                PreferencesUtils.setProperty(Atts.TOP_K, topK);
-                PreferencesUtils.setProperty(Atts.LEN, len);
-                PreferencesUtils.setProperty(Atts.P1, p1);
-                PreferencesUtils.setProperty(Atts.P2, p2);
+
+                PreferencesUtils.setProperty(Atts.LEN, (int)len);
+                PreferencesUtils.setProperty(Atts.TOP_K, (int)topK);
+                PreferencesUtils.setProperty(Atts.P1, p1 * 1f);
+                PreferencesUtils.setProperty(Atts.P2, p2 * 1f);
+                PreferencesUtils.setProperty(Atts.TEMP, temp * 1f);
+                PreferencesUtils.setProperty(Atts.TOP_P, topp * 1f);
 
                 if (model != null && model.isRunning()) return;
 
@@ -109,13 +124,13 @@ public class WriteFragment extends Fragment {
                             uiHandler.post(new Runnable() {
                                 @Override
                                 public void run() {
-                                    working(text, topK, len, p1, p2);
+                                    working(text, temp, topp, topK, len, p1, p2);
                                 }
                             });
                         }
                     });
                 }else {
-                    working(text, topK, len, p1, p2);
+                    working(text, temp, topp, topK, len, p1, p2);
                 }
             }
         });
@@ -123,20 +138,20 @@ public class WriteFragment extends Fragment {
         return view;
     }
 
-    private void working(String text, int topK, int len, float p1, float p2){
+    private void working(String text, float temp, float topp, int topK, int len, float p1, float p2){
         dialog.dismiss();
-        model.setTopK(topK);
+        model.setTop(temp, topp, topK);
         model.setPenalty(p1, p2);
         List<Integer> integers = new ArrayList<>();
         integers.add(11);
         integers.addAll(tokenizer.encode(text));
         model.generate(integers, len, new GptModel.Callback() {
             @Override
-            public void callback(List<Integer> tokens) {
+            public void callback(int token, int index, int maxCount, boolean isEnd) {
                 uiHandler.post(new MyRunnable() {
                     @Override
                     public void run() {
-                        mContentView.append(tokenizer.decode(tokens));
+                        mContentView.append(tokenizer.decode(Arrays.asList(token)));
                         mScrollView.fullScroll(ScrollView.FOCUS_DOWN);
                     }
                 });

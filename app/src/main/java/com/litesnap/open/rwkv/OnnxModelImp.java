@@ -40,10 +40,13 @@ public class OnnxModelImp implements GptModel {
     private final OrtSession.SessionOptions options = new OrtSession.SessionOptions();
     private final Map<String, OnnxTensor> map = new LinkedHashMap<>();
     private final Random random = new Random();
-    private final GPTStrategy strategy = new GPTStrategy(GPTStrategyEnum.TOPK, 5);
     private final ExecutorService exec = Executors.newCachedThreadPool();
 
     private final Context context;
+
+    private float temp = 1f;
+    private float topp = 0.1f;
+    private int topk = 0;
 
     private final int layer = 24;
     private final int embd = 1024;
@@ -55,7 +58,7 @@ public class OnnxModelImp implements GptModel {
     private MyRunnable runnable;
 
     private int mode = MODE_TALK;
-    private float presence = 0.7f;
+    private float presence = 0.4f;
     private float frequency = 0.4f;
     private boolean isRunnable;
 
@@ -81,115 +84,46 @@ public class OnnxModelImp implements GptModel {
             @Override
             public void run() {
                 try {
-                    List<Integer> tokens = new ArrayList<>(sequenceLength);
-                    Map<Integer, Integer> occurrence = new HashMap<>();
+                    Map<Integer, Float> occurrence = new HashMap<>();
 
                     if (mode == MODE_WRITE) fillMap();
 
+                    int nextToken = 0;
                     int size = maxCount + arrays.size();
+
                     for (int i = 0; i < size; i++) {
                         int[] paddedTokens = new int[sequenceLength];
                         IntBuffer buffer = IntBuffer.wrap(paddedTokens);
 
                         if (!arrays.isEmpty()){
-                            tokens.add(arrays.remove(0));
+                            nextToken = arrays.remove(0);
                         }
 
-                        int start = paddedTokens.length - tokens.size();
-                        int index = start < 0 ? tokens.size() - paddedTokens.length : 0;
-                        start = start < 0 ? 0 : start;
-
-                        for (int x = start; x < paddedTokens.length; x++){
-                            paddedTokens[x] = tokens.get(index ++);
-                        }
+                        paddedTokens[0] = nextToken;
 
                         OnnxTensor idx = OnnxTensor.createTensor(environment, buffer, new long[]{sequenceLength});
 
                         map.put(inputNames.get(0), idx);
 
                         ort = session.run(map);
-
-                        float[] predictions = (float[]) ort.get(0).getValue();
-
-                        if (!arrays.isEmpty()) {
-                            fillMap(ort);
-                            continue;
+                        float[] outputLogits = (float[]) ort.get(0).getValue();
+                        for (Map.Entry<Integer, Float> entry : occurrence.entrySet()){
+                            int x = entry.getKey();
+                            outputLogits[x] = outputLogits[x] - (presence + entry.getValue() * frequency);
                         }
+
+                        nextToken = SampleLogits.sample(outputLogits, temp, topp, topk);
 
                         if (isCancel()) return;
 
-                        float[] outputLogits = predictions;
-                        int nextToken = -1;
-
-                        switch (strategy.strategy) {
-                            case TOPK:
-                                List<Pair<Integer, Float>> filteredLogitsWithIndexes = new ArrayList<>();
-                                for (int x = 0; x < outputLogits.length; x++) {
-                                    if (occurrence.containsKey(x)) outputLogits[x] = outputLogits[x] - (presence + occurrence.get(x) * frequency);
-                                    filteredLogitsWithIndexes.add(new Pair<>(x, outputLogits[x]));
-                                }
-
-                                Collections.sort(filteredLogitsWithIndexes, new Comparator<Pair<Integer, Float>>() {
-                                    @Override
-                                    public int compare(Pair<Integer, Float> o1, Pair<Integer, Float> o2) {
-                                        if (o1.second > o2.second) {
-                                            return -1;
-                                        } else if (o1.second < o2.second) {
-                                            return 1;
-                                        } else {
-                                            return 0;
-                                        }
-                                    }
-                                });
-
-                                if (filteredLogitsWithIndexes.size() > strategy.value)
-                                    filteredLogitsWithIndexes = filteredLogitsWithIndexes.subList(0, strategy.value);
-
-                                List<Float> filteredLogits = new ArrayList<>(filteredLogitsWithIndexes.size());
-                                for (Pair<Integer, Float> pair : filteredLogitsWithIndexes)
-                                    filteredLogits.add(pair.second);
-
-                                float maxLogitValue = filteredLogits.get(0);
-                                float sumExp = 0;
-
-                                List<Float> logitsExp = new ArrayList<>();
-                                for (float value : filteredLogits) {
-                                    float result = (float) Math.exp(value - maxLogitValue);
-                                    sumExp += result;
-                                    logitsExp.add(result);
-                                }
-
-                                List<Float> probs = new ArrayList<>();
-                                for (float value : logitsExp) probs.add(value / sumExp);
-
-                                List<Integer> logitsIndexes = new ArrayList<>();
-                                for (Pair<Integer, Float> pair : filteredLogitsWithIndexes)
-                                    logitsIndexes.add(pair.first);
-
-                                nextToken = sample(logitsIndexes, probs);
-                                break;
-                            default:
-                                float value = 0;
-                                for (int x = 0; x < outputLogits.length; x++) {
-                                    float data = outputLogits[x];
-                                    if (x == 0) {
-                                        value = data;
-                                        nextToken = 0;
-                                    } else if (data > value) {
-                                        value = data;
-                                        nextToken = x;
-                                    }
-                                }
-                        }
+                        if (!occurrence.containsKey(nextToken)) occurrence.put(nextToken, 0f);
+                        occurrence.put(nextToken, occurrence.get(nextToken) + 1f);
 
                         if (arrays.isEmpty()){
-                            if (!occurrence.containsKey(nextToken)) occurrence.put(nextToken, 0);
-                            occurrence.put(nextToken, occurrence.get(nextToken) + 1);
-                            tokens.add(nextToken);
-                            Log.e("Dong", "run: "+nextToken);
                             if (mode == MODE_TALK && (nextToken == 60807 || nextToken == 23692 || nextToken == 33161 || nextToken == 82 || nextToken == 24281 || nextToken == 53648 || nextToken == 40301)) break;
-
-                            if (callback != null) callback.callback(new ArrayList<>(Arrays.asList(nextToken)));
+                            if (callback != null) callback.callback(nextToken, i, maxCount, false);
+                            fillMap(ort);
+                        }else {
                             fillMap(ort);
                         }
                     }
@@ -231,8 +165,10 @@ public class OnnxModelImp implements GptModel {
     }
 
     @Override
-    public void setTopK(int value) {
-        strategy.value = value;
+    public void setTop(float temp, float topp, int topk) {
+        this.temp = temp;
+        this.topp = topp;
+        this.topk = topk;
     }
 
     @Override
@@ -263,6 +199,15 @@ public class OnnxModelImp implements GptModel {
             map.put(name, inputTensor);
         }
     }
+
+    /*private void fillMap() throws Exception {
+        for (int i = 0; i < inputNames.size(); i++){
+            String name = inputNames.get(i);
+            float[] buff = new float[embd];
+            OnnxTensor inputTensor = OnnxTensor.createTensor(environment, FloatBuffer.wrap(buff), new long[]{embd});
+            map.put(name, inputTensor);
+        }
+    }*/
 
     private void fillMap(OrtSession.Result result){
         if (result == null) return;

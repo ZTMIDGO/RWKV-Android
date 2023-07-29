@@ -42,18 +42,32 @@ public class WorldTokenizerImp implements GptTokenizer {
     @Override
     public List<Integer> encode(String text) {
         List<Integer> result = new ArrayList<>();
-        byte[] bytes = text.getBytes();
+        char[] chars = text.toCharArray();
+        int position = 0;
         int start = 0;
-        for (int i = 0; i <= bytes.length; i++){
-            byte[] copy = Arrays.copyOfRange(bytes, start, i + 1);
-            if (!tiesSet.contains(MCUUtils.bytesToHex(copy)) || i == bytes.length){
-                boolean isContains = !tiesSet.contains(MCUUtils.bytesToHex(copy));
-                String word = new String(Arrays.copyOfRange(bytes, start, isContains ? i : bytes.length));
-                start = i;
-                if (encoder.containsKey(word)) result.add(encoder.get(word));
+
+        while (position <= chars.length){
+
+            char[] copy = Arrays.copyOfRange(chars, start, position);
+            if (!tiesSet.contains(HexUtils.charsToHex(copy)) || position == chars.length){
+                while (position > start){
+                    String word = new String(Arrays.copyOfRange(chars, start, position));
+                    if (encoder.containsKey(word)) {
+                        result.add(encoder.get(word));
+                        start = position;
+                        break;
+                    }else {
+                        if (-- position <= start){
+                            start += 1;
+                            position = start;
+                            break;
+                        }
+                    }
+                }
             }
+
+            position ++;
         }
-        Log.e("Dong", "encode: "+Arrays.toString(result.toArray()));
         return result;
     }
 
@@ -67,9 +81,10 @@ public class WorldTokenizerImp implements GptTokenizer {
     }
 
     private void addTies(String word){
-        byte[] bytes = word.getBytes();
-        for (int i = 1; i <= bytes.length; i++) {
-            tiesSet.add(MCUUtils.bytesToHex(Arrays.copyOf(bytes, i)));
+        char[] chars = word.toCharArray();
+
+        for (int i = 1; i <= chars.length; i++) {
+            tiesSet.add(HexUtils.charsToHex(Arrays.copyOf(chars, i)));
         }
     }
 

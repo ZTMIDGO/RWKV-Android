@@ -4,6 +4,7 @@ import android.app.ProgressDialog;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,6 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by ZTMIDGO 2023/6/20
@@ -40,6 +42,8 @@ public class TalkFragment extends Fragment {
     private EditText mLenView;
     private EditText mP1View;
     private EditText mP2View;
+    private EditText mTempView;
+    private EditText mTopPView;
     private View mCleanView;
     private View mSendView;
     private EditText mEditText;
@@ -57,6 +61,7 @@ public class TalkFragment extends Fragment {
         super.onCreate(savedInstanceState);
         uiHandler = new Handler();
         dialog = new ProgressDialog(getActivity());
+        dialog.setCancelable(false);
     }
 
     @Override
@@ -77,6 +82,8 @@ public class TalkFragment extends Fragment {
         mSendView = view.findViewById(R.id.send);
         mEditText = view.findViewById(R.id.edit);
         mRecyclerView = view.findViewById(R.id.recycler_view);
+        mTempView = view.findViewById(R.id.temp);
+        mTopPView = view.findViewById(R.id.top_p);
 
         mLayoutManager = new LinearLayoutManager(getActivity(), RecyclerView.VERTICAL, false);
         mAdapter = new MyAdapter(getActivity(), inflater, new ArrayList<>());
@@ -88,6 +95,8 @@ public class TalkFragment extends Fragment {
         mLenView.setText(String.valueOf(PreferencesManager.getLen()));
         mP1View.setText(String.valueOf(PreferencesManager.getP1()));
         mP2View.setText(String.valueOf(PreferencesManager.getP2()));
+        mTempView.setText(String.valueOf(PreferencesManager.getTemp()));
+        mTopPView.setText(String.valueOf(PreferencesManager.getTopp()));
 
         mSendView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -97,16 +106,22 @@ public class TalkFragment extends Fragment {
                 String p1Str = mP1View.getText().toString();
                 String p2Str = mP2View.getText().toString();
                 String text = mEditText.getText().toString();
+                String tempStr = mTempView.getText().toString();
+                String toppStr = mTopPView.getText().toString();
 
                 final int topK = TextUtils.isEmpty(topKStr) ? PreferencesManager.getTopK() : Integer.parseInt(topKStr);
                 final int len = TextUtils.isEmpty(lenStr) ? PreferencesManager.getLen() : Integer.parseInt(lenStr);
                 final float p1 = TextUtils.isEmpty(p1Str) ? PreferencesManager.getP1() : Float.parseFloat(p1Str);
                 final float p2 = TextUtils.isEmpty(p2Str) ? PreferencesManager.getP2() : Float.parseFloat(p2Str);
+                final float temp = TextUtils.isEmpty(tempStr) ? PreferencesManager.getTemp() : Float.parseFloat(tempStr);
+                final float topp = TextUtils.isEmpty(toppStr) ? PreferencesManager.getTopp() : Float.parseFloat(toppStr);
 
-                PreferencesUtils.setProperty(Atts.TOP_K, topK);
-                PreferencesUtils.setProperty(Atts.LEN, len);
-                PreferencesUtils.setProperty(Atts.P1, p1);
-                PreferencesUtils.setProperty(Atts.P2, p2);
+                PreferencesUtils.setProperty(Atts.LEN, (int)len);
+                PreferencesUtils.setProperty(Atts.TOP_K, (int)topK);
+                PreferencesUtils.setProperty(Atts.P1, p1 * 1f);
+                PreferencesUtils.setProperty(Atts.P2, p2 * 1f);
+                PreferencesUtils.setProperty(Atts.TEMP, temp * 1f);
+                PreferencesUtils.setProperty(Atts.TOP_P, topp * 1f);
 
                 if (model != null && model.isRunning()) return;
 
@@ -120,13 +135,13 @@ public class TalkFragment extends Fragment {
                             uiHandler.post(new Runnable() {
                                 @Override
                                 public void run() {
-                                    working(text, topK, len, p1, p2);
+                                    working(text, temp, topp, topK, len, p1, p2);
                                 }
                             });
                         }
                     });
                 }else {
-                    working(text, topK, len, p1, p2);
+                    working(text, temp, topp, topK, len, p1, p2);
                 }
             }
         });
@@ -144,16 +159,17 @@ public class TalkFragment extends Fragment {
         return view;
     }
 
-    private void working(String text, int topK, int len, float p1, float p2){
+    private void working(String text, float temp, float topp, int topK, int len, float p1, float p2){
         dialog.dismiss();
 
         if (TextUtils.isEmpty(text)) return;
 
-        model.setTopK(topK);
+        model.setTop(temp, topp, topK);
         model.setPenalty(p1, p2);
         mAdapter.add(new Talk(Talk.TYPE_QUESTION, text));
         final Talk answer = new Talk(Talk.TYPE_ANSWER, "");
         mAdapter.add(answer);
+        mLayoutManager.scrollToPositionWithOffset(mAdapter.getItemCount() - 1, Integer.MIN_VALUE);
 
         List<Integer> integers = new ArrayList<>();
         integers.add(11);
@@ -167,9 +183,16 @@ public class TalkFragment extends Fragment {
 
         mEditText.setText("");
         model.generate(integers, len, new GptModel.Callback() {
+            long time = System.currentTimeMillis();
+            int laster = 0;
             @Override
-            public void callback(List<Integer> tokens) {
-                answer.setText((answer.getText() + tokenizer.decode(tokens)).replaceFirst("(\n\n)$", ""));
+            public void callback(int token, int index, int maxCount, boolean isEnd) {
+                if (TimeUnit.MILLISECONDS.toMillis(System.currentTimeMillis() - time) >= 1000){
+                    Log.e("Dong", "callback: 每秒生成 "+(index - laster));
+                    time = System.currentTimeMillis();
+                    laster = index;
+                }
+                answer.setText((answer.getText() + tokenizer.decode(Arrays.asList(token))).replaceFirst("(\n\n)$", ""));
                 uiHandler.post(new MyRunnable() {
                     @Override
                     public void run() {

@@ -18,17 +18,17 @@
         android:layout_width="match_parent"
         android:layout_height="100dp"/>
     <Button
-        android:id="@+id/write"
-        android:text="续写"
-        android:enabled="false"
-        android:textSize="18sp"
-        android:layout_width="match_parent"
-        android:layout_height="100dp"/>
-    <Button
         android:id="@+id/answer"
         android:text="对话"
         android:textSize="18sp"
         android:enabled="false"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"/>
+    <Button
+        android:id="@+id/write"
+        android:text="续写"
+        android:enabled="false"
+        android:textSize="18sp"
         android:layout_width="match_parent"
         android:layout_height="100dp"/>
 </androidx.appcompat.widget.LinearLayoutCompat>

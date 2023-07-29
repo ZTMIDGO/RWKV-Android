@@ -5,7 +5,7 @@ package com.litesnap.open.rwkv;
  */
 public class PreferencesManager {
     public static int getTopK(){
-        return PreferencesUtils.getInt(Atts.TOP_K, 1);
+        return PreferencesUtils.getInt(Atts.TOP_K, 0);
     }
 
     public static int getLen(){
@@ -13,10 +13,18 @@ public class PreferencesManager {
     }
 
     public static float getP1(){
-        return PreferencesUtils.getFloat(Atts.P1, 0.7f);
+        return PreferencesUtils.getFloat(Atts.P1, 0.4f);
     }
 
     public static float getP2(){
         return PreferencesUtils.getFloat(Atts.P2, 0.4f);
+    }
+
+    public static float getTemp(){
+        return PreferencesUtils.getFloat(Atts.TEMP, 1.0f);
+    }
+
+    public static float getTopp(){
+        return PreferencesUtils.getFloat(Atts.TOP_P, 0.1f);
     }
 }

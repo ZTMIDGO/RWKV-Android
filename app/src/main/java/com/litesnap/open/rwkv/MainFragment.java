@@ -43,6 +43,8 @@ public class MainFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         uiHandler = new Handler();
+        dialog = new ProgressDialog(getActivity());
+        dialog.setCancelable(false);
     }
 
     @Override
@@ -58,7 +60,6 @@ public class MainFragment extends Fragment {
         mCopyView = view.findViewById(R.id.copy);
         mWriteView = view.findViewById(R.id.write);
         mAnswerView = view.findViewById(R.id.answer);
-        dialog = new ProgressDialog(getActivity());
 
         File file = new File(PathManager.getModelPath(getActivity()) + "/model.onnx");
         isCopy = file.exists();
