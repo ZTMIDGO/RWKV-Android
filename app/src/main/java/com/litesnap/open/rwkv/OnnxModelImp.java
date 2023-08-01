@@ -58,7 +58,7 @@ public class OnnxModelImp implements GptModel {
     private MyRunnable runnable;
 
     private int mode = MODE_TALK;
-    private float presence = 0.4f;
+    private float presence = 0.7f;
     private float frequency = 0.4f;
     private boolean isRunnable;
 
@@ -67,6 +67,7 @@ public class OnnxModelImp implements GptModel {
         this.mode = mode;
         try {
             String path = PathManager.getModelPath(context) + "/" + MODEL_NAME;
+            options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT);
             session = environment.createSession(path, options);
             inputNames.addAll(session.getInputNames());
             fillMap();
@@ -107,6 +108,7 @@ public class OnnxModelImp implements GptModel {
 
                         ort = session.run(map);
                         float[] outputLogits = (float[]) ort.get(0).getValue();
+                        
                         for (Map.Entry<Integer, Float> entry : occurrence.entrySet()){
                             int x = entry.getKey();
                             outputLogits[x] = outputLogits[x] - (presence + entry.getValue() * frequency);

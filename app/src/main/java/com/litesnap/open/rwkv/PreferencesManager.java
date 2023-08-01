@@ -13,7 +13,7 @@ public class PreferencesManager {
     }
 
     public static float getP1(){
-        return PreferencesUtils.getFloat(Atts.P1, 0.4f);
+        return PreferencesUtils.getFloat(Atts.P1, 0.7f);
     }
 
     public static float getP2(){
